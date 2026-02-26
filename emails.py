@@ -26,7 +26,7 @@ SMTP_PORT = int(get_config_val('SMTP_PORT'))
 # ===========================
 
 # ---------- EMAIL FUNCTION ----------
-def send_email(subject, body, attachment_path=None):
+def send_email(subject, body, attachment_paths=None):
     # 1. Create a Multipart container
     msg = MIMEMultipart()
     msg['Subject'] = f"{subject}"
@@ -36,27 +36,32 @@ def send_email(subject, body, attachment_path=None):
     # 2. Attach the body text
     msg.attach(MIMEText(body, 'plain'))
 
-    # 3. Handle the attachment
-    if attachment_path:
-        try:
-            with open(attachment_path, "rb") as attachment:
-                # Create a base part for the file
-                part = MIMEBase("application", "octet-stream")
-                part.set_payload(attachment.read())
-            
-            # Encode file in ASCII characters to send by email    
-            encoders.encode_base64(part)
-            
-            # Add header with the filename
-            part.add_header(
-                "Content-Disposition",
-                f"attachment; filename= {attachment_path}",
-            )
-            
-            # Add attachment to the message
-            msg.attach(part)
-        except Exception as e:
-            print(f"Could not attach file: {e}")
+    # 3. Handle multiple attachments
+    if attachment_paths:
+        # Ensure attachment_paths is a list even if a single string is passed
+        if isinstance(attachment_paths, str):
+            attachment_paths = [attachment_paths]
+
+        for path in attachment_paths:
+            try:
+                if os.path.exists(path):
+                    with open(path, "rb") as attachment:
+                        part = MIMEBase("application", "octet-stream")
+                        part.set_payload(attachment.read())
+                    
+                    encoders.encode_base64(part)
+                    
+                    # Use only the filename, not the full path, for the header
+                    filename = os.path.basename(path)
+                    part.add_header(
+                        "Content-Disposition",
+                        f"attachment; filename= {filename}",
+                    )
+                    msg.attach(part)
+                else:
+                    print(f"File not found: {path}")
+            except Exception as e:
+                print(f"Could not attach file {path}: {e}")
 
     # 4. Send the email
     try:

